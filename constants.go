@@ -5,8 +5,6 @@ const (
 	defaultFromEmail = "user@example.org"
 	defaultHelloName = "localhost"
 
-	smtpPort = ":25"
-
 	reachableYes     = "yes"
 	reachableNo      = "no"
 	reachableUnknown = "unknown"
@@ -22,3 +20,7 @@ const (
 	secondLevelThreshold float32 = 0.82
 	topLevelThreshold    float32 = 0.6
 )
+
+// Reverse order to loop
+// Change if necessary in runtime
+var SMTPPorts = []int{587,465,25}

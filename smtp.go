@@ -135,29 +135,29 @@ func newSMTPClient(domain, proxyURI string, connectTimeout, operationTimeout tim
 
 	// Attempt to connect to all SMTP servers concurrently
 	for i, r := range mxRecords {
-		addr := r.Host + smtpPort
-		index := i
-		go func() {
-			c, err := dialSMTP(addr, proxyURI, connectTimeout, operationTimeout)
-			if err != nil {
-				if !done {
-					ch <- err
+		for _, smtpPort := range SMTPPorts {
+			go func(mxIndex int, addr string) {
+				c, err := dialSMTP(addr, proxyURI, connectTimeout, operationTimeout)
+				if err != nil {
+					if !done {
+						ch <- err
+					}
+					return
 				}
-				return
-			}
 
-			// Place the client on the channel or close it
-			mutex.Lock()
-			switch {
-			case !done:
-				done = true
-				ch <- c
-				selectedMXCh <- mxRecords[index]
-			default:
-				c.Close()
-			}
-			mutex.Unlock()
-		}()
+				// Place the client on the channel or close it
+				mutex.Lock()
+				switch {
+				case !done:
+					done = true
+					ch <- c
+					selectedMXCh <- mxRecords[mxIndex]
+				default:
+					c.Close()
+				}
+				mutex.Unlock()
+			}(i, fmt.Sprintf("%v:%v", r.Host, smtpPort))
+		}
 	}
 
 	// Collect errors or return a client
