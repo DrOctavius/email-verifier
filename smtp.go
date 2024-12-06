@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"math/rand"
 	"net"
 	"net/smtp"
@@ -39,25 +40,35 @@ func (v *Verifier) CheckSMTP(domain, username string) (*SMTP, error) {
 	email := fmt.Sprintf("%s@%s", username, domain)
 
 	// Dial any SMTP server that will accept a connection
+
+	log.Println("domain", domain)
+
 	client, mx, err := newSMTPClient(domain, v.proxyURI, v.connectTimeout, v.operationTimeout)
 	if err != nil {
 		return &ret, ParseSMTPError(err)
 	}
+
+	log.Println("smtp client success!!!")
 
 	// Defer quit the SMTP connection
 	defer client.Close()
 
 	// Check by api when enabled and host recognized.
 	for _, apiVerifier := range v.apiVerifiers {
+		log.Println("apiVerifier", apiVerifier, mx.Host, domain, username, strings.ToLower(mx.Host))
 		if apiVerifier.isSupported(strings.ToLower(mx.Host)) {
 			return apiVerifier.check(domain, username)
 		}
 	}
 
+	log.Println("setting hello")
+
 	// Sets the HELO/EHLO hostname
 	if err = client.Hello(v.helloName); err != nil {
 		return &ret, ParseSMTPError(err)
 	}
+
+	log.Println("sending mail...")
 
 	// Sets the from email
 	if err = client.Mail(v.fromEmail); err != nil {
@@ -114,8 +125,15 @@ func (v *Verifier) CheckSMTP(domain, username string) (*SMTP, error) {
 
 // newSMTPClient generates a new available SMTP client
 func newSMTPClient(domain, proxyURI string, connectTimeout, operationTimeout time.Duration) (*smtp.Client, *net.MX, error) {
+	log.Println("newSMTPClient domain", domain)
+
 	domain = domainToASCII(domain)
+
+	log.Println("domain", domain)
 	mxRecords, err := net.LookupMX(domain)
+
+	log.Println("mx records", mxRecords)
+
 	if err != nil {
 		return nil, nil, err
 	}
@@ -137,6 +155,7 @@ func newSMTPClient(domain, proxyURI string, connectTimeout, operationTimeout tim
 	for i, r := range mxRecords {
 		for _, smtpPort := range SMTPPorts {
 			go func(mxIndex int, addr string) {
+				log.Println("dialing ", mxIndex, addr)
 				c, err := dialSMTP(addr, proxyURI, connectTimeout, operationTimeout)
 				if err != nil {
 					if !done {
@@ -164,6 +183,9 @@ func newSMTPClient(domain, proxyURI string, connectTimeout, operationTimeout tim
 	var errs []error
 	for {
 		res := <-ch
+
+		log.Println("ch res", res)
+
 		switch r := res.(type) {
 		case *smtp.Client:
 			return r, <-selectedMXCh, nil
