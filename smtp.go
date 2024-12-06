@@ -198,18 +198,20 @@ func newSMTPClient(domain, proxyURI string, connectTimeout, operationTimeout tim
 
 		switch r := res.(type) {
 		case *smtp.Client:
+			log.Println("res smtpclient received, returning the client", r)
 			return r, <-selectedMXCh, nil
 		case error:
 			// capture here all the errors
+			log.Println("logging error", r)
 			errs = append(errs, r)
 			if len(errs) == len(mxRecords) {
 				return nil, nil, errs[0]
 			}
 		default:
+			log.Println("default switch called...")
 			return nil, nil, errors.New("Unexpected response dialing SMTP server")
 		}
 	}
-
 }
 
 // dialSMTP is a timeout wrapper for smtp.Dial. It attempts to dial an
