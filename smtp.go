@@ -158,20 +158,30 @@ func newSMTPClient(domain, proxyURI string, connectTimeout, operationTimeout tim
 				log.Println("dialing ", mxIndex, addr)
 				c, err := dialSMTP(addr, proxyURI, connectTimeout, operationTimeout)
 				if err != nil {
+					// it's an error
+					// checking if it's not done... if not, then we send the error
 					if !done {
 						ch <- err
 					}
+					// and returning...
 					return
 				}
 
+				// it's all good
 				// Place the client on the channel or close it
+				// multiple goroutines can succesfully finish
+
 				mutex.Lock()
 				switch {
-				case !done:
+				case !done: // if not done yet
+					log.Println("success done dialing for ", mxIndex, addr)
+
 					done = true
+					// return the selected client
 					ch <- c
 					selectedMXCh <- mxRecords[mxIndex]
 				default:
+					log.Println("success dialing and closing for ", mxIndex, addr)
 					c.Close()
 				}
 				mutex.Unlock()
@@ -190,6 +200,7 @@ func newSMTPClient(domain, proxyURI string, connectTimeout, operationTimeout tim
 		case *smtp.Client:
 			return r, <-selectedMXCh, nil
 		case error:
+			// capture here all the errors
 			errs = append(errs, r)
 			if len(errs) == len(mxRecords) {
 				return nil, nil, errs[0]
