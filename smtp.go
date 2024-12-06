@@ -127,6 +127,9 @@ func (v *Verifier) CheckSMTP(domain, username string) (*SMTP, error) {
 func newSMTPClient(domain, proxyURI string, connectTimeout, operationTimeout time.Duration) (*smtp.Client, *net.MX, error) {
 	log.Println("newSMTPClient domain", domain)
 
+	log.Println("connectTimeout", connectTimeout)
+	log.Println("operationTimeout", operationTimeout)
+
 	domain = domainToASCII(domain)
 
 	log.Println("domain", domain)
@@ -204,7 +207,7 @@ func newSMTPClient(domain, proxyURI string, connectTimeout, operationTimeout tim
 			// capture here all the errors
 			log.Println("logging error", r)
 			errs = append(errs, r)
-			if len(errs) == len(mxRecords) {
+			if len(errs) == len(mxRecords)*len(SMTPPorts) {
 				return nil, nil, errs[0]
 			}
 		default:
